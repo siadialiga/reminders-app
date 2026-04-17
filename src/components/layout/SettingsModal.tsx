@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Settings as SettingsIcon, Bell, Moon, Sun, Monitor, Clock,
-  Trash2, Info, Github, Heart, Globe
+  Trash2, Info, Github, Heart, Globe, RefreshCcw
 } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { useTranslation } from '../../i18n';
@@ -23,8 +23,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [tab, setTab] = useState<TabType>('general');
   const [tempName, setTempName] = useState(settings.userName);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'found' | 'none' | 'error'>('idle');
 
   if (!open) return null;
+
+  const manualCheck = async () => {
+    setUpdateStatus('checking');
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (update) {
+        setUpdateStatus('found');
+      } else {
+        setUpdateStatus('none');
+      }
+    } catch (e) {
+      console.error(e);
+      setUpdateStatus('error');
+    }
+  };
 
   const handleNameSave = () => {
     if (tempName.trim()) updateSettings({ userName: tempName.trim() });
@@ -349,6 +366,28 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Reminders</h3>
                 <p className="text-sm text-gray-500">{t('version')} 0.1.0 (Stable)</p>
               </div>
+
+              <button
+                onClick={manualCheck}
+                disabled={updateStatus === 'checking'}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm",
+                  updateStatus === 'found' 
+                    ? "bg-green-500 text-white hover:bg-green-600" 
+                    : "bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-400"
+                )}
+              >
+                <RefreshCcw className={cn("w-4 h-4", updateStatus === 'checking' && "animate-spin")} />
+                {updateStatus === 'checking'
+                  ? t('checkingUpdates')
+                  : updateStatus === 'found'
+                  ? t('updateAvailable')
+                  : updateStatus === 'none'
+                  ? t('noUpdateFound')
+                  : updateStatus === 'error'
+                  ? t('updateError')
+                  : t('checkForUpdates')}
+              </button>
 
               <div className="w-full h-px bg-gray-100 dark:bg-white/5 my-2" />
 

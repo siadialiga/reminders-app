@@ -1,0 +1,11 @@
+{
+    "version": "0.1.0",
+    "notes": "",
+    "pub_date": "2026-04-17T13:26:00Z",
+    "platforms": {
+        "windows-x86_64": {
+            "signature": "",
+            "url": "https://github.com/siadialiga/reminders-app/releases/download/v0.1.0/Reminders_0.1.0_x64_en-US.msi"
+        }
+    }
+}

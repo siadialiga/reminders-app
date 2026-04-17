@@ -130,6 +130,10 @@ const translations = {
     updateAvailable: 'A new update is available',
     update: 'Update',
     dismiss: 'Dismiss',
+    checkForUpdates: 'Check for updates',
+    checkingUpdates: 'Checking for updates...',
+    noUpdateFound: 'Your app is up to date',
+    updateError: 'Error checking for updates',
 
     // About
     about: 'About',
@@ -262,6 +266,10 @@ const translations = {
     updateAvailable: 'Yeni bir güncelleme mevcut',
     update: 'Güncelle',
     dismiss: 'Kapat',
+    checkForUpdates: 'Güncellemeleri denetle',
+    checkingUpdates: 'Güncellemeler denetleniyor...',
+    noUpdateFound: 'Uygulama güncel',
+    updateError: 'Güncelleme denetlenirken hata oluştu',
 
     // About
     about: 'Hakkında',

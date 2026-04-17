@@ -29,7 +29,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -49,7 +52,7 @@
     },
     "updater": {
       "endpoints": [
-        "https://github.com/user/reminders-app/releases/latest/download/latest.json"
+        "https://github.com/siadialiga/reminders-app/releases/latest/download/latest.json"
       ],
       "pubkey": ""
     }
