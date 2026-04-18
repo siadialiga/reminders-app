@@ -1,1 +1,1 @@
-<img width="1254" height="310" alt="remindersbanner" src="https://github.com/user-attachments/assets/1a6187c4-8f9b-4ff5-af3b-fd9faba59d60" />
+<img width="1254" height="310" alt="reminders afiş" src="https://github.com/user-attachments/assets/be82270e-0b6e-48ab-9a27-eba3216b89d5" />
