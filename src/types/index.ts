@@ -4,6 +4,12 @@ export type ThemeMode = 'light' | 'dark' | 'system' | 'auto';
 
 export type TaskPriority = 'none' | 'low' | 'medium' | 'high';
 
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -18,6 +24,10 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   flagged: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  tags?: string[];
+  subtasks?: Subtask[];
 }
 
 export type ListColor =
@@ -42,9 +52,11 @@ export interface TaskList {
   icon: string;
   createdAt: string;
   isDefault?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
-export type SidebarView = 'today' | 'scheduled' | 'all' | 'flagged' | 'completed' | string; // string = listId
+export type SidebarView = 'today' | 'scheduled' | 'all' | 'flagged' | 'completed' | 'trash' | string; // string = listId
 
 export interface AppSettings {
   userName: string;
@@ -56,6 +68,8 @@ export interface AppSettings {
   language: string;
   autoStart: boolean;
   minimizeToTray: boolean;
+  viewMode: 'list' | 'board';
+  tutorialCompleted: boolean;
 }
 
 export interface AppState {

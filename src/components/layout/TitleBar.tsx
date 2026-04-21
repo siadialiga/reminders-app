@@ -32,8 +32,8 @@ interface TitleBarProps {
 
 export function TitleBar({ children }: TitleBarProps) {
   return (
-    <div className="drag-region shrink-0 h-[38px] flex items-center justify-between bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/5">
-      {/* Left side — app content */}
+    <div className="drag-region shrink-0 h-[38px] flex items-center justify-between bg-white/80 dark:bg-[#3A3A3C]/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/5">
+      {/* Left controls (macOS style) */}
       <div className="flex items-center gap-2 pl-4 flex-1 min-w-0">
         {children}
       </div>

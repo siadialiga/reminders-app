@@ -26,17 +26,10 @@ export function UpdateBanner() {
 
   async function installUpdate() {
     try {
-      setUpdating(true);
-      const { check } = await import('@tauri-apps/plugin-updater');
-      const update = await check();
-      if (update) {
-        await update.downloadAndInstall();
-        // Relaunch after install
-        const { relaunch } = await import('@tauri-apps/plugin-process');
-        await relaunch();
-      }
-    } catch {
-      setUpdating(false);
+      const { open } = await import('@tauri-apps/plugin-opener');
+      await open('https://github.com/siadialiga/reminders-app/releases');
+    } catch (err) {
+      console.error('Failed to open github releases:', err);
     }
   }
 
@@ -48,10 +41,9 @@ export function UpdateBanner() {
       <span>{t('updateAvailable')}</span>
       <button
         onClick={installUpdate}
-        disabled={updating}
-        className="px-3 py-0.5 rounded-md bg-white/20 hover:bg-white/30 font-semibold text-xs transition-colors disabled:opacity-50"
+        className="px-3 py-0.5 rounded-md bg-white/20 hover:bg-white/30 font-semibold text-xs transition-colors"
       >
-        {updating ? '...' : t('update')}
+        {t('update')}
       </button>
       <button
         onClick={() => setVisible(false)}

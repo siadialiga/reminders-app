@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Check, Flag, Clock, Trash2,
-  AlarmClock
+  AlarmClock, Hash, ListTodo, Plus
 } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { useTranslation } from '../../i18n';
 import { ContextMenu } from '../ui/ContextMenu';
 import { ConfirmModal } from '../ui';
-import type { Task, TaskPriority } from '../../types';
-import { formatDueDate, isOverdue, cn, LIST_COLORS } from '../../utils';
+import type { Task, TaskPriority, Subtask } from '../../types';
+import { formatDueDate, isOverdue, cn, LIST_COLORS, generateId } from '../../utils';
 
 // ─── TaskItem ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,22 @@ export function TaskItem({ task, onSelect, isSelected }: TaskItemProps) {
                   <span>{formatDueDate(task.dueDate, task.dueTime)}</span>
                 </div>
               )}
+              {((task.tags && task.tags.length > 0) || (task.subtasks && task.subtasks.length > 0)) && (
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  {task.tags?.map((t) => (
+                    <span key={t} className="text-[10px] font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                      <Hash className="w-2.5 h-2.5" />
+                      {t}
+                    </span>
+                  ))}
+                  {task.subtasks && task.subtasks.length > 0 && (
+                    <div className="text-[10px] font-medium bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                      <ListTodo className="w-2.5 h-2.5" />
+                      {task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Actions (visible on hover) */}
@@ -167,6 +183,8 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
   const [priority, setPriority] = useState<TaskPriority>('none');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [flagged, setFlagged] = useState(false);
+  const [tagsInput, setTagsInput] = useState('');
+  const [subtasks, setSubtasks] = useState<Task['subtasks']>([]);
 
   const PRIORITIES: { value: TaskPriority; label: string }[] = [
     { value: 'none', label: t('priority_none') },
@@ -185,6 +203,8 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
       setPriority(task.priority);
       setReminderEnabled(task.reminderEnabled);
       setFlagged(task.flagged);
+      setTagsInput(task.tags?.join(', ') || '');
+      setSubtasks(task.subtasks || []);
     }
   }, [task]);
 
@@ -199,13 +219,27 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
       priority,
       reminderEnabled,
       flagged,
+      tags: tagsInput.split(',').map(s => s.trim()).filter(Boolean),
+      subtasks,
     });
+  };
+
+  const handleAddSubtask = () => {
+    setSubtasks([...(subtasks || []), { id: generateId(), title: '', completed: false }]);
+  };
+
+  const updateSubtask = (id: string, updates: Partial<Subtask>) => {
+    setSubtasks(subtasks?.map(st => st.id === id ? { ...st, ...updates } : st));
+  };
+
+  const removeSubtask = (id: string) => {
+    setSubtasks(subtasks?.filter(st => st.id !== id));
   };
 
   if (!task) return null;
 
   return (
-    <div className="w-80 shrink-0 h-full flex flex-col bg-white dark:bg-[#0a0a0a] border-l border-gray-200/60 dark:border-white/10 overflow-y-auto">
+    <div className="w-80 shrink-0 h-full flex flex-col bg-white dark:bg-[#2C2C2E] border-l border-gray-200/60 dark:border-white/10 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/10">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('details')}</h3>
@@ -244,6 +278,67 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
             placeholder={t('addNote')}
             className="mt-1 w-full text-sm text-gray-700 dark:text-gray-300 bg-transparent border border-gray-200 dark:border-white/10 rounded-lg p-2.5 outline-none focus:border-blue-400 transition-colors resize-none placeholder-gray-300 dark:placeholder-gray-600"
           />
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+            <Hash className="w-3.5 h-3.5" />
+            {t('tagsComma')}
+          </label>
+          <input
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            onBlur={save}
+            placeholder="work, urgent"
+            className="w-full text-sm font-medium text-blue-500 dark:text-blue-400 bg-blue-50/50 dark:bg-white/5 border border-blue-100 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-400 transition-colors"
+          />
+        </div>
+
+        {/* Subtasks */}
+        <div>
+          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+            <ListTodo className="w-3.5 h-3.5" />
+            {t('subtasks')}
+          </label>
+          <div className="space-y-1.5">
+            {subtasks?.map(st => (
+              <div key={st.id} className="flex items-center gap-2 group bg-gray-50 dark:bg-white/5 rounded pl-1.5 pr-1 py-1">
+                <button
+                  onClick={() => { updateSubtask(st.id, { completed: !st.completed }); setTimeout(save, 0); }}
+                  className={cn(
+                    "w-[18px] h-[18px] rounded-full flex items-center justify-center border shrink-0",
+                    st.completed ? "bg-blue-500 border-blue-500" : "border-gray-300 dark:border-gray-500"
+                  )}
+                >
+                  {st.completed && <Check className="w-2.5 h-2.5 text-white" />}
+                </button>
+                <input
+                  value={st.title}
+                  onChange={e => updateSubtask(st.id, { title: e.target.value })}
+                  onBlur={save}
+                  placeholder={t('taskName')}
+                  className={cn(
+                    "flex-1 bg-transparent text-sm outline-none transition-colors min-w-0",
+                    st.completed ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-200"
+                  )}
+                />
+                <button
+                  onClick={() => { removeSubtask(st.id); setTimeout(save, 0); }}
+                  className="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all rounded"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={handleAddSubtask}
+            className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-blue-500 hover:text-blue-600 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t('addSubtask')}
+          </button>
         </div>
 
         {/* Due Date */}

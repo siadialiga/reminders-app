@@ -9,6 +9,7 @@ import { MainArea } from './components/layout/MainArea';
 import { SettingsModal } from './components/layout/SettingsModal';
 import { TitleBar } from './components/layout/TitleBar';
 import { UpdateBanner } from './components/layout/UpdateBanner';
+import { TutorialOverlay } from './components/ui/TutorialOverlay';
 
 // ─── Inner App (inside context) ──────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ function AppInner() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#050505] text-gray-900 dark:text-gray-100 transition-colors duration-300 rounded-lg">
+    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#1C1C1E] dark:bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] dark:from-[#2C2C2E] dark:via-[#1C1C1E] dark:to-[#1C1C1E] text-gray-900 dark:text-gray-100 transition-colors duration-300 rounded-lg">
       {/* Update banner */}
       <UpdateBanner />
 
@@ -62,6 +63,8 @@ function AppInner() {
         <Sidebar onSettingsOpen={() => setSettingsOpen(true)} />
         <MainArea />
       </div>
+
+      <TutorialOverlay />
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>

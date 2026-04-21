@@ -10,17 +10,19 @@ import { ContextMenu } from '../ui/ContextMenu';
 import { LIST_COLORS, cn } from '../../utils';
 import { ConfirmModal } from '../ui';
 import type { ListColor, TaskList } from '../../types';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 // ─── Smart View config ───────────────────────────────────────────────────────
 
 const SMART_VIEWS = [
   {
-    id: 'today',
+      id: 'today',
     labelKey: 'today',
     icon: CalendarDays,
     bgColor: 'bg-blue-500',
     iconBg: 'bg-white',
     iconColor: 'text-blue-500',
+    glowColor: 'ring-blue-500/50 shadow-blue-500/30',
   },
   {
     id: 'scheduled',
@@ -29,6 +31,7 @@ const SMART_VIEWS = [
     bgColor: 'bg-red-500',
     iconBg: 'bg-white/20',
     iconColor: 'text-white',
+    glowColor: 'ring-red-500/50 shadow-red-500/30',
   },
   {
     id: 'all',
@@ -37,6 +40,7 @@ const SMART_VIEWS = [
     bgColor: 'bg-gray-700 dark:bg-gray-600',
     iconBg: 'bg-white/20',
     iconColor: 'text-white',
+    glowColor: 'ring-gray-700/50 dark:ring-gray-400/50 shadow-gray-700/30',
   },
   {
     id: 'flagged',
@@ -45,6 +49,7 @@ const SMART_VIEWS = [
     bgColor: 'bg-orange-500',
     iconBg: 'bg-white/20',
     iconColor: 'text-white',
+    glowColor: 'ring-orange-500/50 shadow-orange-500/30',
   },
   {
     id: 'completed',
@@ -53,6 +58,7 @@ const SMART_VIEWS = [
     bgColor: 'bg-[#95969a] dark:bg-gray-500',
     iconBg: 'bg-white/30',
     iconColor: 'text-white',
+    glowColor: 'ring-gray-400/50 shadow-gray-400/30',
   },
 ] as const;
 
@@ -92,7 +98,7 @@ function NewListModal({ open, onClose }: { open: boolean; onClose: () => void })
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white dark:bg-[#000000] shadow-2xl border border-gray-200/60 dark:border-white/10 p-6 animate-in zoom-in-95 fade-in duration-150">
+      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white dark:bg-[#3A3A3C] shadow-2xl border border-gray-200/60 dark:border-white/10 p-6 animate-in zoom-in-95 fade-in duration-150">
         <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">
           {t('newList')}
         </h3>
@@ -129,7 +135,7 @@ function NewListModal({ open, onClose }: { open: boolean; onClose: () => void })
                     'w-7 h-7 rounded-full transition-all',
                     LIST_COLORS[c].bg,
                     color === c
-                      ? 'ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-[#000000] scale-110'
+                      ? 'ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-[#2C2C2E] scale-110'
                       : 'hover:scale-105'
                   )}
                 />
@@ -188,7 +194,7 @@ function EditListModal({ open, onClose, list }: { open: boolean; onClose: () => 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white dark:bg-[#000000] shadow-2xl border border-gray-200/60 dark:border-white/10 p-6">
+      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white dark:bg-[#3A3A3C] shadow-2xl border border-gray-200/60 dark:border-white/10 p-6">
         <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">{t('rename')}</h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
@@ -211,7 +217,7 @@ function EditListModal({ open, onClose, list }: { open: boolean; onClose: () => 
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={cn('w-7 h-7 rounded-full transition-all', LIST_COLORS[c].bg, color === c && 'ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-[#000000] scale-110')}
+                  className={cn('w-7 h-7 rounded-full transition-all', LIST_COLORS[c].bg, color === c && 'ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-[#2C2C2E] scale-110')}
                 />
               ))}
             </div>
@@ -250,6 +256,14 @@ export function Sidebar({ onSettingsOpen }: SidebarProps) {
       return t(list.id as any);
     }
     return list.name;
+  };
+
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+    const items = Array.from(lists);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    reorderLists(items.map(l => l.id));
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -313,27 +327,34 @@ export function Sidebar({ onSettingsOpen }: SidebarProps) {
 
   return (
     <>
-      <aside className="w-[280px] shrink-0 h-full flex flex-col bg-[#f2f2f7] dark:bg-[#000000] border-r border-gray-200/60 dark:border-white/10 select-none">
+      <aside className="w-[280px] shrink-0 h-full flex flex-col bg-[#f2f2f7] dark:bg-[#2C2C2E] border-r border-gray-200/60 dark:border-white/10 select-none">
         {/* Header */}
         <div className="px-4 pt-4 pb-3 flex items-center justify-between">
-          <button
-            onClick={onSettingsOpen}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-white/10 transition-all font-medium"
-            title={t('settings')}
-          >
-            <Settings className="w-[18px] h-[18px]" />
-          </button>
-          <button
-            onClick={() => setShowNewList(true)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-white/10 transition-all font-medium"
-            title={t('newList')}
-          >
-            <Plus className="w-[18px] h-[18px]" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onSettingsOpen}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-white/10 transition-all font-medium"
+              title={t('settings')}
+            >
+              <Settings className="w-[18px] h-[18px]" />
+            </button>
+            <button
+              id="tutorial-trash"
+              onClick={() => setView('trash')}
+              className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center transition-all font-medium",
+                selectedView === 'trash' ? 'bg-red-500/10 text-red-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-white/10'
+              )}
+              title="Trash"
+            >
+              <Trash2 className="w-[18px] h-[18px]" />
+            </button>
+          </div>
+          <div />
         </div>
 
         {/* Smart Views (Widgets) */}
-        <div className="grid grid-cols-2 gap-2.5 px-3 mb-3">
+        <div id="tutorial-smart-views" className="grid grid-cols-2 gap-2.5 px-3 mb-3">
           {SMART_VIEWS.map((view) => {
             const Icon = view.icon;
             const count = badgeCounts[view.id] ?? 0;
@@ -345,10 +366,10 @@ export function Sidebar({ onSettingsOpen }: SidebarProps) {
                 key={view.id}
                 onClick={() => setView(view.id)}
                 className={cn(
-                  'relative flex flex-col p-3 rounded-[14px] transition-all duration-200 text-left overflow-hidden shadow-sm h-[78px]',
+                  'relative flex flex-col p-3 rounded-[14px] transition-all duration-300 text-left overflow-hidden h-[78px]',
                   isActive
-                    ? 'ring-[3px] ring-blue-500/40 scale-[0.97]'
-                    : 'hover:scale-[0.98] hover:shadow-md',
+                    ? `ring-[3px] scale-[0.97] shadow-xl ${view.glowColor}`
+                    : 'hover:scale-[0.98] shadow-sm hover:shadow-md',
                   view.bgColor,
                   colSpan
                 )}
@@ -391,74 +412,88 @@ export function Sidebar({ onSettingsOpen }: SidebarProps) {
           </button>
 
           {listsExpanded && (
-            <div className="space-y-0.5">
-              {lists.map((list) => {
-                const isActive = selectedView === list.id;
-                const count = getListCount(list.id);
-                const listName = getListName(list);
-                const isDragOver = dragOverListId === list.id;
-                
-                return (
-                  <div key={list.id}>
-                    <ContextMenu
-                      items={[
-                        { label: t('show'), onClick: () => setView(list.id) },
-                        { label: t('rename'), onClick: () => setEditingList(list), icon: <Pencil className="w-3.5 h-3.5" /> },
-                        {
-                          label: t('delete'),
-                          onClick: () => setListToDelete(list),
-                          variant: 'danger',
-                          icon: <Trash2 className="w-3.5 h-3.5" />
-                        },
-                      ]}
-                      trigger={
-                        <div
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, list.id)}
-                          onDragOver={(e) => handleDragOver(e, list.id)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop(e, list.id)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => setView(list.id)}
-                          className={cn(
-                            'w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-sm font-medium transition-all duration-100 group cursor-default',
-                            isActive
-                              ? 'bg-blue-500 text-white shadow-sm'
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-white/10',
-                            isDragOver && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-[#f2f2f7] dark:ring-offset-[#000000] bg-blue-50/50 dark:bg-blue-500/20',
-                            draggedListId === list.id && 'opacity-30'
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Droppable droppableId="lists-droppable">
+                {(provided) => (
+                  <div
+                    className="space-y-0.5"
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                  >
+                    {lists.filter(l => !l.isDeleted).map((list, index) => {
+                      const isActive = selectedView === list.id;
+                      const count = getListCount(list.id);
+                      const listName = getListName(list);
+                      
+                      return (
+                        <Draggable key={list.id} draggableId={list.id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              style={{ ...provided.draggableProps.style, ...(snapshot.isDragging ? { zIndex: 50 } : {}) }}
+                            >
+                              <ContextMenu
+                                items={[
+                                  { label: t('show'), onClick: () => setView(list.id) },
+                                  { label: t('rename'), onClick: () => setEditingList(list), icon: <Pencil className="w-3.5 h-3.5" /> },
+                                  {
+                                    label: t('delete'),
+                                    onClick: () => setListToDelete(list),
+                                    variant: 'danger',
+                                    icon: <Trash2 className="w-3.5 h-3.5" />
+                                  },
+                                ]}
+                                trigger={
+                                  <div
+                                    onClick={() => setView(list.id)}
+                                    className={cn(
+                                      'w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-sm font-medium transition-all duration-100 group cursor-pointer',
+                                      isActive
+                                        ? 'bg-[#007AFF] text-white shadow-sm'
+                                        : 'text-[#1C1C1E] dark:text-[#EBEBF5] hover:bg-[#E5E5EA] dark:hover:bg-[#3A3A3C]',
+                                      dragOverListId === list.id && 'ring-2 ring-[#007AFF] ring-offset-1 ring-offset-[#F2F2F7] dark:ring-offset-[#2C2C2E] bg-[#007AFF]/10 dark:bg-[#007AFF]/20',
+                                      draggedListId === list.id && 'opacity-30'
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        'w-7 h-7 rounded-full shrink-0 flex items-center justify-center',
+                                        LIST_COLORS[list.color].bg
+                                      )}
+                                    >
+                                      <ListChecks className="w-3.5 h-3.5 text-white" />
+                                    </span>
+                                    <span className="flex-1 text-left truncate">{listName}</span>
+                                    {count > 0 && (
+                                      <span className={cn(
+                                        "text-xs font-semibold tabular-nums",
+                                        isActive ? "text-blue-100" : "text-gray-400 dark:text-gray-500"
+                                      )}>
+                                        {count}
+                                      </span>
+                                    )}
+                                  </div>
+                                }
+                              />
+                            </div>
                           )}
-                        >
-                          <span
-                            className={cn(
-                              'w-7 h-7 rounded-full shrink-0 flex items-center justify-center',
-                              LIST_COLORS[list.color].bg
-                            )}
-                          >
-                            <ListChecks className="w-3.5 h-3.5 text-white" />
-                          </span>
-                          <span className="flex-1 text-left truncate">{listName}</span>
-                          {count > 0 && (
-                            <span className={cn(
-                              "text-xs font-semibold tabular-nums",
-                              isActive ? "text-blue-100" : "text-gray-400 dark:text-gray-500"
-                            )}>
-                              {count}
-                            </span>
-                          )}
-                        </div>
-                      }
-                    />
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
         </div>
 
         {/* Bottom New List */}
         <div className="px-3 pb-4 pt-2">
           <button
+            id="tutorial-add-list"
             onClick={() => setShowNewList(true)}
             className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-white/5 transition-all"
           >

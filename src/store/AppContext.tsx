@@ -4,6 +4,7 @@ import React, {
   useReducer,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -20,15 +21,17 @@ const DEFAULT_LISTS: TaskList[] = [
 ];
 
 const DEFAULT_SETTINGS: AppSettings = {
+  language: 'en',
+  theme: 'system',
   userName: '',
-  theme: 'light',
+  autoStart: false,
+  minimizeToTray: false,
   notificationsEnabled: true,
   autoThemeDayStart: 7,
   autoThemeNightStart: 19,
   showCompletedTasks: true,
-  language: 'en',
-  autoStart: true,
-  minimizeToTray: true,
+  viewMode: 'list',
+  tutorialCompleted: false,
 };
 
 const INITIAL_STATE: AppState = {
@@ -40,12 +43,15 @@ const INITIAL_STATE: AppState = {
 };
 
 const STORAGE_KEY = 'macos-reminders-data';
+const STORAGE_VERSION = '1.0.0'; // bump this whenever AppState shape changes significantly
+const STORAGE_VERSION_KEY = 'macos-reminders-version';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 type Action =
   | { type: 'LOAD_STATE'; payload: Partial<AppState> }
-  | { type: 'COMPLETE_ONBOARDING'; payload: { userName: string } }
+  | { type: 'COMPLETE_ONBOARDING'; payload: { userName: string; skipTutorial?: boolean } }
+  | { type: 'COMPLETE_TUTORIAL' }
   | { type: 'ADD_TASK'; payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'notified'> }
   | { type: 'UPDATE_TASK'; payload: { id: string; changes: Partial<Task> } }
   | { type: 'DELETE_TASK'; payload: string }
@@ -57,7 +63,12 @@ type Action =
   | { type: 'SET_VIEW'; payload: SidebarView }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<AppSettings> }
   | { type: 'CLEAR_ALL_DATA' }
-  | { type: 'MARK_NOTIFIED'; payload: string };
+  | { type: 'MARK_NOTIFIED'; payload: string }
+  | { type: 'RESTORE_TASK'; payload: string }
+  | { type: 'HARD_DELETE_TASK'; payload: string }
+  | { type: 'RESTORE_LIST'; payload: string }
+  | { type: 'HARD_DELETE_LIST'; payload: string }
+  | { type: 'EMPTY_TRASH' };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
@@ -65,13 +76,29 @@ function reducer(state: AppState, action: Action): AppState {
   const now = new Date().toISOString();
   switch (action.type) {
     case 'LOAD_STATE':
-      return { ...INITIAL_STATE, ...action.payload };
+      // Deep-merge settings with defaults so that new fields added in later
+      // versions always have a safe fallback value, even for old persisted data.
+      return {
+        ...INITIAL_STATE,
+        ...action.payload,
+        settings: { ...DEFAULT_SETTINGS, ...(action.payload.settings ?? {}) },
+      };
 
     case 'COMPLETE_ONBOARDING':
       return {
         ...state,
         onboardingDone: true,
-        settings: { ...state.settings, userName: action.payload.userName },
+        settings: {
+          ...state.settings,
+          userName: action.payload.userName,
+          tutorialCompleted: action.payload.skipTutorial ?? false,
+        },
+      };
+
+    case 'COMPLETE_TUTORIAL':
+      return {
+        ...state,
+        settings: { ...state.settings, tutorialCompleted: true },
       };
 
     case 'ADD_TASK': {
@@ -81,6 +108,8 @@ function reducer(state: AppState, action: Action): AppState {
         createdAt: now,
         updatedAt: now,
         notified: false,
+        tags: [],
+        subtasks: [],
       };
       return { ...state, tasks: [...state.tasks, task] };
     }
@@ -94,7 +123,12 @@ function reducer(state: AppState, action: Action): AppState {
       };
 
     case 'DELETE_TASK':
-      return { ...state, tasks: state.tasks.filter((t) => t.id !== action.payload) };
+      return {
+        ...state,
+        tasks: state.tasks.map((t) =>
+          t.id === action.payload ? { ...t, isDeleted: true, deletedAt: now, updatedAt: now } : t
+        ),
+      };
 
     case 'TOGGLE_TASK':
       return {
@@ -124,8 +158,13 @@ function reducer(state: AppState, action: Action): AppState {
     case 'DELETE_LIST':
       return {
         ...state,
-        lists: state.lists.filter((l) => l.id !== action.payload),
-        tasks: state.tasks.filter((t) => t.listId !== action.payload),
+        lists: state.lists.map((l) =>
+          l.id === action.payload ? { ...l, isDeleted: true, deletedAt: now } : l
+        ),
+        // we also soft-delete all tasks in this list
+        tasks: state.tasks.map((t) =>
+          t.listId === action.payload ? { ...t, isDeleted: true, deletedAt: now, updatedAt: now } : t
+        ),
         selectedView: state.selectedView === action.payload ? 'today' : state.selectedView,
       };
 
@@ -153,6 +192,40 @@ function reducer(state: AppState, action: Action): AppState {
         tasks: state.tasks.map((t) => (t.id === action.payload ? { ...t, notified: true } : t)),
       };
 
+    case 'RESTORE_TASK':
+      return {
+        ...state,
+        tasks: state.tasks.map((t) =>
+          t.id === action.payload ? { ...t, isDeleted: false, deletedAt: undefined, updatedAt: now } : t
+        ),
+      };
+
+    case 'HARD_DELETE_TASK':
+      return { ...state, tasks: state.tasks.filter((t) => t.id !== action.payload) };
+
+    case 'RESTORE_LIST':
+      return {
+        ...state,
+        lists: state.lists.map((l) =>
+          l.id === action.payload ? { ...l, isDeleted: false, deletedAt: undefined } : l
+        ),
+        // we could also restore tasks that belonged to this list, but let's keep it simple or explicit
+      };
+
+    case 'HARD_DELETE_LIST':
+      return {
+        ...state,
+        lists: state.lists.filter((l) => l.id !== action.payload),
+        tasks: state.tasks.filter((t) => !(t.listId === action.payload && t.isDeleted)), // forcefully remove trashed tasks of this list
+      };
+
+    case 'EMPTY_TRASH':
+      return {
+        ...state,
+        lists: state.lists.filter((l) => !l.isDeleted),
+        tasks: state.tasks.filter((t) => !t.isDeleted),
+      };
+
     default:
       return state;
   }
@@ -164,7 +237,8 @@ interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<Action>;
   // Convenience actions
-  completeOnboarding: (userName: string) => void;
+  completeOnboarding: (userName: string, skipTutorial?: boolean) => void;
+  completeTutorial: () => void;
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'notified'>) => void;
   updateTask: (id: string, changes: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -176,6 +250,11 @@ interface AppContextValue {
   setView: (view: SidebarView) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   clearAllData: () => void;
+  restoreTask: (id: string) => void;
+  hardDeleteTask: (id: string) => void;
+  restoreList: (id: string) => void;
+  hardDeleteList: (id: string) => void;
+  emptyTrash: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -184,15 +263,25 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const hasLoaded = useRef(false);
 
   // Load from localStorage on mount
   useEffect(() => {
     try {
+      // Version guard: if the persisted schema is from an older version, wipe it
+      const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
+      if (savedVersion !== STORAGE_VERSION) {
+        console.info(`[Reminders] Storage version mismatch (${savedVersion} → ${STORAGE_VERSION}). Clearing old data.`);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(STORAGE_VERSION_KEY, STORAGE_VERSION);
+        hasLoaded.current = true;
+        return; // start fresh with INITIAL_STATE
+      }
+
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<AppState>;
         dispatch({ type: 'LOAD_STATE', payload: parsed });
-        // Sync i18n language from persisted state
         if (parsed.settings?.language) {
           initLanguage(parsed.settings.language as 'tr' | 'en');
         }
@@ -200,10 +289,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {
       console.warn('Failed to load state from localStorage');
     }
+    hasLoaded.current = true;
   }, []);
 
-  // Persist to localStorage on every state change
+  // Persist to localStorage on every state change (only after initial load)
   useEffect(() => {
+    if (!hasLoaded.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
@@ -223,9 +314,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     syncSettings();
   }, [state.settings.minimizeToTray]);
 
-  const completeOnboarding = useCallback((userName: string) => {
-    dispatch({ type: 'COMPLETE_ONBOARDING', payload: { userName } });
-  }, []);
+  const completeOnboarding = (userName: string, skipTutorial?: boolean) => {
+    dispatch({ type: 'COMPLETE_ONBOARDING', payload: { userName, skipTutorial } });
+  };
+
+  const completeTutorial = () => {
+    dispatch({ type: 'COMPLETE_TUTORIAL' });
+  };
 
   const addTask = useCallback(
     (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'notified'>) => {
@@ -266,14 +361,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_VIEW', payload: view });
   }, []);
 
-  const updateSettings = useCallback((settings: Partial<AppSettings>) => {
+  const updateSettings = (settings: Partial<AppSettings>) => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: settings });
-  }, []);
+  };
 
   const clearAllData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     dispatch({ type: 'CLEAR_ALL_DATA' });
   }, []);
+
+  const restoreTask = useCallback((id: string) => dispatch({ type: 'RESTORE_TASK', payload: id }), []);
+  const hardDeleteTask = useCallback((id: string) => dispatch({ type: 'HARD_DELETE_TASK', payload: id }), []);
+  const restoreList = useCallback((id: string) => dispatch({ type: 'RESTORE_LIST', payload: id }), []);
+  const hardDeleteList = useCallback((id: string) => dispatch({ type: 'HARD_DELETE_LIST', payload: id }), []);
+  const emptyTrash = useCallback(() => dispatch({ type: 'EMPTY_TRASH' }), []);
 
   return (
     <AppContext.Provider
@@ -281,6 +382,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         state,
         dispatch,
         completeOnboarding,
+        completeTutorial,
         addTask,
         updateTask,
         deleteTask,
@@ -292,6 +394,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setView,
         updateSettings,
         clearAllData,
+        restoreTask,
+        hardDeleteTask,
+        restoreList,
+        hardDeleteList,
+        emptyTrash,
       }}
     >
       {children}

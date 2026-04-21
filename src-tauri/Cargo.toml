@@ -1,7 +1,7 @@
 [package]
 name = "reminders"
-version = "0.1.0"
-description = "A macOS-style Reminders desktop app"
+version = "1.0.0"
+description = "A macOS-style reminders and to-do app."
 authors = ["Batuhan Eroğlu"]
 edition = "2021"
 

@@ -70,7 +70,7 @@ export function ContextMenu({ items, trigger, className }: ContextMenuProps) {
             left: position.x,
             zIndex: 9999,
           }}
-          className="w-48 bg-white/90 dark:bg-[#000000]/95 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100"
+          className="w-48 bg-white/90 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100"
           onClick={(e) => e.stopPropagation()}
         >
           {items.map((item, i) => (

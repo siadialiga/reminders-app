@@ -1,11 +1,11 @@
 {
-    "version": "0.1.0",
-    "notes": "",
-    "pub_date": "2026-04-17T13:26:00Z",
+    "version": "1.0.0",
+    "notes": "With this update, new features have been added, including a trash bin for recovering deleted items, drag-and-drop list sorting, and subtasks with tags. Additionally, a new Kanban board view and a completely renewed, more elegant Apple-style dark theme have been added. I will continue to work on performance improvements, enjoy your use.",
+    "pub_date": "2026-04-21T22:59:14Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "",
-            "url": "https://github.com/siadialiga/reminders-app/releases/download/v0.1.0/Reminders_0.1.0_x64_en-US.msi"
+            "signature": "Batuhan Eroğlu",
+            "url": "https://github.com/siadialiga/reminders-app/releases/download/1.0.0/Reminders_1.0.0_x64_en-US.msi"
         }
     }
 }
